@@ -25,6 +25,20 @@ type Terraform struct {
 	status   string
 }
 
+func CreateTerraform(c *stdcli.Context, name string, md *Metadata) (*Terraform, error) {
+	t := &Terraform{ctx: c, name: name, provider: md.Provider}
+
+	if err := t.create(md.Vars["release"], md.Vars, md.State); err != nil {
+		return nil, err
+	}
+
+	if err := t.init(); err != nil {
+		return nil, err
+	}
+
+	return t, nil
+}
+
 func InstallTerraform(c *stdcli.Context, provider, name, version string, options map[string]string) error {
 	if !terraformInstalled(c) {
 		return fmt.Errorf("terraform required")
@@ -138,6 +152,32 @@ func (t Terraform) Delete() error {
 
 func (t Terraform) Latest() (string, error) {
 	return terraformLatestVersion()
+}
+
+func (t Terraform) Metadata() (*Metadata, error) {
+	dir, err := t.settingsDirectory()
+	if err != nil {
+		return nil, err
+	}
+
+	state, err := ioutil.ReadFile(filepath.Join(dir, "terraform.tfstate"))
+	if err != nil {
+		return nil, err
+	}
+
+	vars, err := t.vars()
+	if err != nil {
+		return nil, err
+	}
+
+	m := &Metadata{
+		Deletable: true,
+		Provider:  t.provider,
+		State:     state,
+		Vars:      vars,
+	}
+
+	return m, nil
 }
 
 func (t Terraform) MarshalJSON() ([]byte, error) {

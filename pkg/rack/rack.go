@@ -15,8 +15,17 @@ var (
 	TestLatest string
 )
 
+type Metadata struct {
+	Deletable bool
+	Provider  string
+	State     []byte
+	Vars      map[string]string
+}
+
 type Rack interface {
 	Client() (sdk.Interface, error)
+	Delete() error
+	Metadata() (*Metadata, error)
 	Name() string
 	Parameters() (map[string]string, error)
 	Provider() string
@@ -25,6 +34,17 @@ type Rack interface {
 	Uninstall() error
 	UpdateParams(map[string]string) error
 	UpdateVersion(string) error
+}
+
+func Create(c *stdcli.Context, name string, md *Metadata) (Rack, error) {
+	switch len(strings.Split(name, "/")) {
+	case 1:
+		return CreateTerraform(c, name, md)
+	case 2:
+		return CreateConsole(c, name, md)
+	default:
+		return nil, fmt.Errorf("invalid name: %s", name)
+	}
 }
 
 func Current(c *stdcli.Context) (Rack, error) {
@@ -111,6 +131,17 @@ func List(c *stdcli.Context) ([]Rack, error) {
 	})
 
 	return rs, nil
+}
+
+func Load(c *stdcli.Context, name string) (Rack, error) {
+	switch len(strings.Split(name, "/")) {
+	case 1:
+		return LoadTerraform(c, name)
+	case 2:
+		return LoadConsole(c, name)
+	default:
+		return nil, fmt.Errorf("invalid name: %s", name)
+	}
 }
 
 func Match(c *stdcli.Context, name string) (Rack, error) {
